@@ -1,0 +1,40 @@
+# Secrets and credentials
+.env
+.env.*
+*.key
+*.pem
+*.pfx
+*.p12
+credentials.json
+secrets.json
+
+# Azure / Microsoft credentials
+azure-credentials*
+tenant-credentials*
+client-secret*
+
+# Local configuration
+*.local
+*.secret
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+env/
+
+# VS Code
+.vscode/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Temporary files
+*.tmp
+*.temp
+*.log
+
+# Exported data that may contain sensitive information
+exports/
