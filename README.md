@@ -4,234 +4,432 @@
 ![Azure](https://img.shields.io/badge/Azure-Cloud-blue)
 ![Microsoft Sentinel](https://img.shields.io/badge/Microsoft-Sentinel-purple)
 ![Defender for Endpoint](https://img.shields.io/badge/Defender%20for%20Endpoint-EDR-green)
-![Entra ID](https://img.shields.io/badge/Entra%20ID-Identity-blue)
+![Microsoft Entra ID](https://img.shields.io/badge/Microsoft-Entra%20ID-blue)
 ![KQL](https://img.shields.io/badge/KQL-Detection%20Engineering-orange)
 ![MITRE ATT&CK](https://img.shields.io/badge/MITRE%20ATT%26CK-Mapped-red)
 ![Status](https://img.shields.io/badge/Status-In%20Progress-yellow)
 
 ## Overview
 
-This project is a practical **Microsoft Cloud SOC, EDR, detection engineering, threat hunting, incident investigation, and response laboratory** built around the Microsoft security ecosystem.
+This project is a hands-on **Microsoft Cloud SOC, EDR, identity telemetry, detection engineering, threat hunting, incident investigation, and response laboratory** built around the Microsoft security ecosystem.
 
-The lab demonstrates an end-to-end SOC workflow rather than isolated tool usage:
+The project is designed to demonstrate an evidence-driven SOC workflow:
 
 **Controlled Activity → Telemetry → Detection → Hunting → Correlation → Investigation → Response → Validation → Documentation**
 
-The environment combines Microsoft Sentinel, Microsoft Defender for Endpoint, Microsoft Entra ID, Azure, Windows, KQL, PowerShell, Python, MITRE ATT&CK, and security automation.
+The lab combines:
 
-The project is designed to demonstrate practical SOC capabilities relevant to **SOC Analyst, Security Operations, Detection Engineering, Threat Hunting, Microsoft Security, and Cloud Security** roles.
+- Microsoft Azure
+- Microsoft Sentinel
+- Log Analytics
+- Microsoft Defender for Endpoint
+- Microsoft Defender
+- Microsoft Entra ID
+- KQL
+- Windows
+- PowerShell
+- Python
+- MITRE ATT&CK
+- Security automation
+
+The project is being developed to demonstrate practical capabilities relevant to:
+
+**SOC Analyst · Security Operations · Detection Engineering · Threat Hunting · Microsoft Security · Cloud Security**
 
 ---
 
-## Project Objectives
+## Objectives
 
-The primary objectives are to demonstrate practical ability to:
+The project is designed to demonstrate practical ability to:
 
-- Build and understand a Microsoft cloud SOC architecture
-- Work with Microsoft Sentinel
-- Deploy and investigate Microsoft Defender for Endpoint telemetry
-- Analyze Microsoft Entra ID authentication activity
-- Write practical KQL investigation and detection queries
+- Build a Microsoft cloud SOC architecture
+- Configure Microsoft Sentinel and Log Analytics
+- Work with Microsoft Defender for Endpoint
+- Analyze Microsoft Entra ID identity and authentication telemetry
+- Investigate authentication activity
+- Develop KQL investigation and detection queries
 - Build authentication and endpoint detections
 - Correlate identity and endpoint activity
 - Perform hypothesis-driven threat hunting
 - Enrich and investigate indicators of compromise
 - Conduct end-to-end incident investigations
-- Perform controlled incident response and containment
-- Build security automation using Sentinel/Logic Apps
-- Use Python/API enrichment where appropriate
-- Map detections and investigations to MITRE ATT&CK
+- Perform controlled response and containment
+- Build security automation
+- Map validated activity to MITRE ATT&CK
 - Validate detections using controlled scenarios
-- Analyze false positives and tune detections
-- Document security investigations using reproducible evidence
+- Analyze false positives and tune detection logic
+- Produce recruiter-ready technical documentation and evidence
 
 ---
 
-## Technology Stack
+# Lab Architecture
 
-| Technology | Role in the Project |
+```text
+                         ┌────────────────────────────┐
+                         │   Controlled Activity      │
+                         │   / Attack Scenario        │
+                         └─────────────┬──────────────┘
+                                       │
+                    ┌──────────────────┴──────────────────┐
+                    │                                     │
+                    ▼                                     ▼
+         ┌─────────────────────┐             ┌─────────────────────┐
+         │ Microsoft Entra ID  │             │ Windows 10 Endpoint │
+         │ Identity Telemetry  │             │ win10-client        │
+         └──────────┬──────────┘             └──────────┬──────────┘
+                    │                                   │
+                    │ Sign-in / Auth                    │ Endpoint Telemetry
+                    │                                   │
+                    └──────────────┬────────────────────┘
+                                   ▼
+                     ┌────────────────────────────┐
+                     │ Microsoft Defender for     │
+                     │ Endpoint / Microsoft       │
+                     │ Defender                  │
+                     └────────────┬───────────────┘
+                                  │
+                                  ▼
+                     ┌────────────────────────────┐
+                     │ Microsoft Sentinel         │
+                     │ SIEM                       │
+                     └────────────┬───────────────┘
+                                  │
+                                  ▼
+                     ┌────────────────────────────┐
+                     │ Log Analytics Workspace     │
+                     │ law-project05-soc           │
+                     │                            │
+                     │ KQL Investigation           │
+                     │ Detection Engineering       │
+                     │ Threat Hunting              │
+                     └────────────┬───────────────┘
+                                  │
+                                  ▼
+                     ┌────────────────────────────┐
+                     │ SOC Analyst                 │
+                     │                            │
+                     │ Triage                     │
+                     │ Investigation               │
+                     │ Correlation                 │
+                     │ Threat Hunting              │
+                     │ Response                    │
+                     └────────────────────────────┘
+```
+
+---
+
+# Current Environment
+
+## Microsoft Cloud
+
+| Component | Configuration / Status |
 |---|---|
-| Microsoft Azure | Cloud platform and security infrastructure |
-| Microsoft Sentinel | SIEM and cloud-native SOC platform |
+| Azure Tenant | Personal Cybersecurity Lab |
+| Azure Subscription | Azure subscription 1 |
+| Azure Region | Central India |
+| Resource Group | `rg-project05-soc` |
+| Log Analytics Workspace | `law-project05-soc` |
+| Microsoft Sentinel | Enabled |
+| Sentinel Trial | Active |
+| Microsoft Defender for Endpoint | Active |
+| Microsoft Entra ID | Active |
+| Windows Endpoint | `win10-client.corp.local` |
+
+## Endpoint
+
+| Attribute | Value |
+|---|---|
+| Hostname | `win10-client.corp.local` |
+| OS | Windows 10 Pro 22H2 |
+| Architecture | 64-bit |
+| Domain | `corp.local` |
+| Private IP | `192.168.159.133` |
+| Device Type | Workstation |
+| MDE Onboarding | Onboarded |
+
+---
+
+# Technology Stack
+
+| Technology | Role |
+|---|---|
+| Microsoft Azure | Cloud platform and SOC infrastructure |
+| Microsoft Sentinel | SIEM |
+| Log Analytics | Central telemetry repository and KQL platform |
 | Microsoft Defender for Endpoint | EDR and endpoint telemetry |
-| Microsoft Defender XDR | Security investigation and correlation |
+| Microsoft Defender | Unified SecOps experience |
 | Microsoft Entra ID | Identity and authentication telemetry |
-| KQL | Detection, investigation, correlation, and hunting |
+| KQL | Investigation, detection, correlation, hunting |
 | Windows | Endpoint telemetry source |
-| PowerShell | Controlled endpoint activity and investigation |
-| Python | Automation/API enrichment where applicable |
+| PowerShell | Controlled endpoint activity |
+| Python | Automation / API enrichment |
 | MITRE ATT&CK | Adversary technique mapping |
-| Logic Apps | Security automation / SOAR |
-| VMware Workstation | Local virtualized lab environment |
+| Logic Apps | SOAR / automation |
+| VMware Workstation | Local virtualized lab |
 | Git | Version control |
-| GitHub | Portfolio and project repository |
-| Visual Studio Code | Documentation and development environment |
+| GitHub | Project repository |
+| Visual Studio Code | Documentation and development |
 
 ---
 
-## Lab Architecture
+# Completed Work
 
-The project is designed around the following security workflow:
+## Day 00 — Environment Preparation
 
-    ┌───────────────────────┐
-    │   Controlled Activity │
-    │   / Attack Scenario   │
-    └───────────┬───────────┘
-                │
-                ▼
-    ┌───────────────────────┐
-    │ Identity / Endpoint   │
-    │ Entra ID / Windows    │
-    └───────────┬───────────┘
-                │
-                ▼
-    ┌───────────────────────┐
-    │ Security Telemetry    │
-    │ Auth / Process /      │
-    │ Network / Endpoint    │
-    └───────────┬───────────┘
-                │
-                ▼
-    ┌───────────────────────┐
-    │ Microsoft Defender    │
-    │ for Endpoint / XDR    │
-    └───────────┬───────────┘
-                │
-                ▼
-    ┌───────────────────────┐
-    │ Microsoft Sentinel    │
-    │ SIEM                  │
-    └───────────┬───────────┘
-                │
-                ▼
-    ┌───────────────────────┐
-    │ KQL Detection / Hunt  │
-    └───────────┬───────────┘
-                │
-                ▼
-    ┌───────────────────────┐
-    │ Alert / Incident      │
-    └───────────┬───────────┘
-                │
-                ▼
-    ┌───────────────────────┐
-    │ SOC Analyst           │
-    │ Triage & Investigation│
-    └───────────┬───────────┘
-                │
-                ▼
-    ┌───────────────────────┐
-    │ Response / Containment│
-    └───────────┬───────────┘
-                │
-                ▼
-    ┌───────────────────────┐
-    │ Validation / Tuning   │
-    │ / Documentation       │
-    └───────────────────────┘
+**Status: ✅ Completed**
+
+Completed:
+
+- Azure environment prepared
+- Azure subscription verified
+- Microsoft Defender for Endpoint trial/environment prepared
+- Tenant alignment completed
+- Windows 10 endpoint onboarded
+- Defender device inventory verified
+- Microsoft Entra environment verified
+- Microsoft 365 administrative environment verified
+- Project repository created
+- Documentation structure created
+- Evidence structure created
+- Day 00 documentation completed
 
 ---
 
-## Lab Environment
+## Day 01 — SOC Architecture & Cloud Environment
 
-The laboratory combines Microsoft cloud services with local virtual machines.
+**Status: ✅ Completed**
 
-### Microsoft Cloud
+### Infrastructure
 
-- Azure subscription
-- Microsoft Entra ID tenant
-- Microsoft Defender for Endpoint
-- Microsoft Sentinel
-- Microsoft 365 administrative environment
+- Created resource group `rg-project05-soc`
+- Standardized the lab around **Central India**
+- Created Log Analytics workspace `law-project05-soc`
+- Activated Microsoft Sentinel
+- Activated the Sentinel free-trial environment
+- Verified the unified Microsoft Defender/Sentinel SecOps portal
+- Reviewed Sentinel data connector baseline
+- Verified Defender for Endpoint endpoint visibility
 
-### Local Virtual Environment
+### Endpoint
 
-- Windows 10 workstation
-- Windows Server 2022 Active Directory Domain Controller
-- Ubuntu Linux
-- Kali Linux
-- VMware Workstation
+- Verified `win10-client.corp.local`
+- Confirmed device is visible in Microsoft Defender
+- Confirmed endpoint onboarding status as **Onboarded**
+- Established initial endpoint security baseline
 
-The Windows 10 workstation acts as the primary endpoint telemetry source for Defender for Endpoint investigations.
+### Documentation
 
----
-
-## Project Workflow
-
-The project follows a progressive SOC engineering workflow.
-
-### Phase 1 — Environment and Telemetry
-
+- Environment inventory
 - SOC architecture
-- Azure environment
-- Entra ID
-- Defender for Endpoint
-- Windows endpoint
-- Sentinel integration
-- Telemetry validation
+- Telemetry/data-flow model
+- Day 01 validation
+- Day 01 evidence
+- Day 01 documentation
 
-### Phase 2 — Detection Engineering
+Evidence:
 
-- KQL fundamentals
-- Authentication detections
-- Password-spray and brute-force scenarios
-- Failed-authentication → successful-authentication analysis
-- PowerShell detection
-- Process execution analysis
-- LOLBin-related detection
-- Identity and endpoint correlation
+```text
+screenshots/Day01/
+```
 
-### Phase 3 — Threat Hunting
+Documentation:
 
-- Hypothesis-driven hunting
-- Authentication hunting
-- Endpoint hunting
-- Identity-to-device investigation
-- IOC enrichment
-- Advanced hunting
+```text
+docs/Day01.md
+```
 
-### Phase 4 — Incident Investigation
+Architecture:
 
-- Alert triage
-- Scope assessment
-- Timeline construction
-- Identity investigation
-- Endpoint investigation
-- Evidence collection
-- Root-cause analysis
-- Containment recommendations
-
-### Phase 5 — Response and Automation
-
-- Controlled endpoint isolation
-- Test-account containment
-- Session revocation
-- Process termination
-- Indicator blocking where appropriate
-- Sentinel automation
-- Logic Apps
-- Python/API enrichment
-
-### Phase 6 — Validation and Tuning
-
-- Detection validation
-- False-positive analysis
-- Detection tuning
-- MITRE ATT&CK coverage
-- SOC metrics
-- Final end-to-end simulation
-- Independent investigation
-- Recruiter-quality repository review
+```text
+architecture/Project05-SOC-Architecture-Day01.png
+```
 
 ---
 
-## Detection Engineering
+# Day 02 — Entra ID & Identity Telemetry
 
-The project focuses on practical detections that can be reproduced and validated.
+**Status: ✅ Completed**
 
-Planned detection areas include:
+Day 02 established the identity telemetry and authentication investigation baseline required for future authentication detection engineering.
 
-### Authentication
+## Identity Baseline
+
+Reviewed the Microsoft Entra tenant and existing users.
+
+The environment contained:
+
+- `Ananthan Azure Admin` — Guest
+- `ananthan D` — Member
+
+The existing member identity was used to review authentication telemetry.
+
+---
+
+## Interactive Sign-in Telemetry
+
+Reviewed Microsoft Entra interactive sign-in logs and confirmed availability of:
+
+- Timestamp
+- Request ID
+- User
+- Application
+- Status
+- Sign-in error code
+- Source IP address
+
+---
+
+## Sign-in Event Investigation
+
+Investigated an individual sign-in event and reviewed:
+
+- User
+- Username
+- User ID
+- Session context
+- Application
+- Application ID
+- Resource
+- Resource tenant
+- Home tenant
+- Client application
+
+---
+
+## Location and Network Context
+
+Reviewed:
+
+- Source IP
+- Geographic location
+- Autonomous System Number
+- Global Secure Access status
+- Named location context
+
+---
+
+## Authentication and MFA
+
+Reviewed authentication details showing:
+
+- Security Defaults
+- Authentication state
+- First-factor requirement
+- MFA requirement
+- MFA satisfaction
+- Successful authentication context
+
+---
+
+## Conditional Access
+
+Reviewed Conditional Access results showing:
+
+- Security Defaults
+- MFA grant control
+- Successful policy evaluation
+
+---
+
+## Audit Logs
+
+Reviewed the Entra Audit Logs page using the available User Management filter.
+
+No matching rows were returned during the reviewed period.
+
+This result was documented as a baseline observation rather than interpreted as a telemetry failure.
+
+---
+
+## Day 02 Evidence
+
+```text
+screenshots/Day02/
+├── Day02-01-Entra-Sign-In-Logs-Baseline.png
+├── Day02-02-Entra-Sign-In-Event-Details.png
+├── Day02-03-Entra-Sign-In-Location-Details.png
+├── Day02-04-Entra-Authentication-Details.png
+├── Day02-05-Entra-Conditional-Access-Result.png
+└── Day02-06-Entra-Audit-Logs-Baseline.png
+```
+
+Documentation:
+
+```text
+docs/Day02.md
+```
+
+---
+
+# SOC Investigation Workflow Established
+
+The identity investigation process established during Day 02 is:
+
+```text
+User
+  ↓
+Sign-in Event
+  ↓
+Source IP
+  ↓
+Location
+  ↓
+Device Context
+  ↓
+Application / Resource
+  ↓
+Authentication Details
+  ↓
+MFA
+  ↓
+Conditional Access
+  ↓
+Authentication Outcome
+```
+
+This workflow will later be extended into:
+
+```text
+Identity Activity
+      ↓
+Endpoint Activity
+      ↓
+Correlation
+      ↓
+Detection
+      ↓
+Investigation
+      ↓
+Response
+```
+
+---
+
+# Detection Engineering
+
+The project follows a telemetry-first approach.
+
+A detection is not treated as complete simply because a query or rule has been written.
+
+The validation model is:
+
+```text
+Controlled Scenario
+        ↓
+Expected Telemetry
+        ↓
+KQL / Detection Logic
+        ↓
+Detection Result / Alert
+        ↓
+Analyst Investigation
+        ↓
+Conclusion
+        ↓
+Validation Evidence
+```
+
+## Planned Authentication Detections
 
 - Excessive authentication failures
 - Password-spray behavior
@@ -239,53 +437,60 @@ Planned detection areas include:
 - Failed authentication followed by successful authentication
 - Suspicious authentication patterns
 
-### Endpoint
+## Planned Endpoint Detections
 
-- Suspicious PowerShell activity
+- Suspicious PowerShell
 - Process execution
 - Parent-child process relationships
 - Suspicious command-line activity
 - LOLBin-related behavior
 
-### Correlation
+## Planned Correlation
 
-- Identity activity followed by endpoint activity
-- User → device → process correlation
-- Authentication → execution timelines
-- Cross-source investigation
-
-Every important detection follows the validation chain:
-
-**Scenario → Telemetry → Query/Rule → Alert/Result → Investigation → Conclusion**
+- User → device correlation
+- Authentication → endpoint activity
+- Identity → process relationships
+- Cross-source attack timelines
 
 ---
 
-## Threat Hunting
+# Threat Hunting
 
-Threat hunting is performed using explicit hypotheses rather than only searching for existing alerts.
+Threat hunting will use explicit hypotheses rather than relying only on existing alerts.
 
-Example hunting hypotheses include:
+Planned hunting areas include:
 
-- A password spray may be targeting multiple accounts.
-- Suspicious PowerShell execution may indicate malicious activity.
-- A compromised identity may access an unusual endpoint.
-- Identity activity may be followed by suspicious endpoint execution.
+- Password spraying across accounts
+- Suspicious PowerShell activity
+- Unusual identity-to-endpoint access
+- Identity activity followed by suspicious endpoint execution
+- IOC-driven investigation
 
-Each hunt is documented using:
+Each hunt will follow:
 
-**Hypothesis → Data Source → Query → Observation → Conclusion → Next Action**
+```text
+Hypothesis
+   ↓
+Data Source
+   ↓
+Query
+   ↓
+Observation
+   ↓
+Conclusion
+   ↓
+Next Action
+```
 
 ---
 
-## Incident Investigation
+# Incident Investigation
 
-The project includes end-to-end incident investigations designed to demonstrate how a SOC analyst progresses from an initial alert to a defensible conclusion.
-
-Investigation activities include:
+The project will demonstrate a complete SOC investigation workflow covering:
 
 - Alert triage
 - Initial evidence collection
-- User identification
+- Identity analysis
 - Source IP analysis
 - Device identification
 - Process analysis
@@ -293,40 +498,44 @@ Investigation activities include:
 - Scope assessment
 - Evidence correlation
 - Containment recommendation
-- Final investigation report
+- Final reporting
 
-The investigation process emphasizes evidence-based conclusions rather than assumptions.
+The emphasis is on **evidence-based conclusions** rather than assumptions.
 
 ---
 
-## MITRE ATT&CK Mapping
+# MITRE ATT&CK
 
-Relevant detections, hunts, and investigations are mapped to MITRE ATT&CK techniques where appropriate.
+MITRE ATT&CK will be used to map validated adversary behaviors to relevant techniques.
 
-Example techniques include:
+Current project mapping examples include:
 
 - **T1110 — Brute Force**
 - **T1059.001 — PowerShell**
 
-Additional techniques will be added only when supported by completed and validated project activities.
+Additional techniques will only be added after the underlying activity has been completed and validated.
 
-MITRE coverage is maintained under:
+MITRE coverage:
 
-    mitre-coverage/
+```text
+mitre-coverage/
+```
 
 ---
 
-## KQL Query Library
+# KQL Query Library
 
-Reusable KQL queries are organized by investigation purpose:
+Reusable KQL will be organized by investigation purpose:
 
-    kql/
-    ├── authentication/
-    ├── endpoint/
-    ├── correlation/
-    └── hunting/
+```text
+kql/
+├── authentication/
+├── endpoint/
+├── correlation/
+└── hunting/
+```
 
-Queries are documented with:
+Each query will be documented with:
 
 - Investigation purpose
 - Data source/table
@@ -334,137 +543,119 @@ Queries are documented with:
 - Expected behavior
 - Observed result
 - Analyst interpretation
-- Relevant detection or hunting use case
+- Detection or hunting use case
 
 ---
 
-## Repository Structure
+# Repository Structure
 
-    Project-05-Microsoft-Cloud-SOC/
-    │
-    ├── architecture/
-    │   └── architecture diagrams and data-flow documentation
-    │
-    ├── attacks/
-    │   └── controlled attack and scenario documentation
-    │
-    ├── automation/
-    │   └── Sentinel/Logic Apps/Python automation
-    │
-    ├── detections/
-    │   └── detection engineering documentation
-    │
-    ├── docs/
-    │   └── Day00.md, Day01.md, Day02.md, ...
-    │
-    ├── hunting/
-    │   └── hypothesis-driven threat hunting reports
-    │
-    ├── investigations/
-    │   └── incident investigation reports and timelines
-    │
-    ├── kql/
-    │   ├── authentication/
-    │   ├── correlation/
-    │   ├── endpoint/
-    │   └── hunting/
-    │
-    ├── mitre-coverage/
-    │   └── MITRE ATT&CK technique coverage
-    │
-    ├── screenshots/
-    │   ├── Day00/
-    │   ├── Day01/
-    │   ├── Day02/
-    │   ├── Day03/
-    │   └── ...
-    │
-    ├── validation/
-    │   └── detection validation records
-    │
-    ├── .gitignore
-    └── README.md
+```text
+Project-05-Microsoft-Cloud-SOC/
+│
+├── architecture/
+│   └── SOC architecture and data-flow diagrams
+│
+├── attacks/
+│   └── Controlled attack/scenario documentation
+│
+├── automation/
+│   └── Sentinel / Logic Apps / Python automation
+│
+├── detections/
+│   └── Detection specifications and logic
+│
+├── docs/
+│   ├── Day00.md
+│   ├── Day01.md
+│   ├── Day02.md
+│   └── ...
+│
+├── hunting/
+│   └── Threat-hunting reports
+│
+├── investigations/
+│   └── Incident investigation reports
+│
+├── kql/
+│   ├── authentication/
+│   ├── endpoint/
+│   ├── correlation/
+│   └── hunting/
+│
+├── mitre-coverage/
+│   └── MITRE ATT&CK coverage
+│
+├── screenshots/
+│   ├── Day00/
+│   ├── Day01/
+│   ├── Day02/
+│   └── ...
+│
+├── validation/
+│   └── Detection validation records
+│
+├── .gitignore
+└── README.md
+```
 
 ---
 
-## Evidence and Documentation Strategy
+# Evidence Strategy
 
-Evidence is treated as part of the technical implementation rather than decoration.
+Screenshots are treated as **technical evidence**, not decoration.
 
-Each project day contains relevant screenshots and documentation.
-
-Screenshots are named consistently:
-
-    DayXX-01-Description.png
-    DayXX-02-Description.png
-    DayXX-03-Description.png
-
-Evidence should demonstrate meaningful states such as:
+Evidence is captured only when it demonstrates a meaningful:
 
 - Configuration
-- Telemetry
-- Detection results
-- Query execution
-- Alerts
-- Incidents
-- Investigation timelines
-- Response actions
-- Validation results
+- Telemetry source
+- Query result
+- Detection result
+- Alert
+- Incident
+- Investigation step
+- Response action
+- Validation result
 
-Unnecessary screenshots are avoided.
+Evidence naming follows:
 
-The repository is documented progressively rather than reconstructed after the project is finished.
+```text
+DayXX-01-Description.png
+DayXX-02-Description.png
+DayXX-03-Description.png
+```
 
----
-
-## Current Progress
-
-### Day 00 — Environment Preparation
-
-**Status: Completed**
-
-Completed activities include:
-
-- Azure environment preparation
-- Azure subscription and tenant alignment
-- Microsoft Defender for Endpoint preparation
-- Windows 10 endpoint onboarding
-- Defender device inventory verification
-- Microsoft Entra tenant verification
-- Microsoft 365 administrative environment verification
-- VS Code documentation workspace
-- Git repository initialization
-- GitHub repository creation
-- Evidence directory creation
-- Day 0 evidence collection
-- Day 0 documentation
-
-The primary Windows 10 endpoint is successfully onboarded into Microsoft Defender for Endpoint and available for subsequent telemetry and investigation activities.
-
-### Day 01
-
-**Status: Next**
-
-Focus:
-
-- SOC architecture
-- Azure resources
-- Log Analytics
-- Microsoft Sentinel
-- Telemetry flow
-- Initial architecture evidence
+Daily documentation is created progressively to preserve the actual implementation sequence.
 
 ---
 
-## Project Roadmap
+# Cost-Control Approach
+
+This project is designed as a controlled personal laboratory.
+
+The environment uses:
+
+- Azure free-account resources where applicable
+- Microsoft Sentinel trial resources
+- A single primary Windows endpoint
+- Minimal required cloud infrastructure
+- Controlled telemetry sources
+- No unnecessary continuously running Azure infrastructure
+
+Unnecessary Sentinel connectors and optional analytics features are not enabled simply to increase the tool count.
+
+The objective is to maximize practical SOC experience while keeping cloud consumption controlled.
+
+---
+
+# Project Roadmap
 
 | Day | Focus | Status |
 |---:|---|---|
-| 00 | Environment preparation | Completed |
-| 01 | SOC architecture & cloud environment | Planned |
-| 02 | Entra ID & identity telemetry | Planned |
-| 03 | Defender for Endpoint | Planned |
-| 04 | Sentinel & telemetry integration | Planned |
+| 00 | Environment preparation | ✅ Completed |
+| 01 | SOC architecture & cloud environment | ✅ Completed |
+| 02 | Entra ID & identity telemetry | ✅ Completed |
+| 03 | Defender for Endpoint telemetry | 🔜 Next |
+| 04 | Sentinel + telemetry integration | Planned |
 | 05 | KQL fundamentals | Planned |
 | 06 | Authentication detection engineering | Planned |
 | 07 | Endpoint detection engineering | Planned |
@@ -482,11 +673,9 @@ Focus:
 
 ---
 
-## Target Project Metrics
+# Target Project Metrics
 
-The following are **project targets, not completed results**.
-
-Final metrics will only be added after the corresponding work has been completed and verified.
+These are **targets only**, not completed results.
 
 | Metric | Target |
 |---|---:|
@@ -501,42 +690,31 @@ Final metrics will only be added after the corresponding work has been completed
 | Incident reports | 2–3 |
 | Detection validation | Every detection |
 
+Final metrics will be added only after the corresponding work has been completed and verified.
+
 ---
 
-## Recruiter and Interview Value
+# Recruiter / Interview Value
 
-This project is designed to demonstrate an end-to-end Microsoft SOC workflow rather than simple familiarity with individual security products.
+This project is designed to demonstrate that I can work through a practical Microsoft SOC workflow rather than only list security tools.
 
-The intended technical narrative is:
+The intended interview narrative is:
 
-> Built a Microsoft Cloud SOC environment using Microsoft Sentinel, Defender for Endpoint, and Microsoft Entra ID; generated controlled identity and endpoint activity; collected and analyzed security telemetry; developed KQL detections; performed hypothesis-driven threat hunting; correlated identity and endpoint activity; investigated incidents; documented response actions; and implemented security automation.
+> **Built a Microsoft Cloud SOC environment using Microsoft Sentinel, Microsoft Defender for Endpoint, and Microsoft Entra ID. Established identity and endpoint telemetry, investigated authentication activity, developed KQL-based detections, performed threat hunting and cross-source correlation, investigated incidents, executed controlled response actions, and documented the complete evidence chain.**
 
-Each claim will be supported by repository evidence, including:
-
-- Architecture
-- KQL queries
-- Detection logic
-- Screenshots
-- Validation records
-- MITRE ATT&CK mappings
-- Hunting reports
-- Investigation reports
-- Response documentation
-- Automation workflows
-
-The repository is structured so that an interviewer can follow the investigation from:
+The repository is structured so an interviewer can move from:
 
 **Architecture → Telemetry → Detection → Validation → Investigation → Response**
 
+and review the supporting evidence at each stage.
+
 ---
 
-## Security and Privacy
+# Security & Privacy
 
-This repository is intended to be publicly viewable.
+This repository is public and must never contain secrets.
 
-No secrets or sensitive credentials should be committed.
-
-The repository must not contain:
+Never commit:
 
 - Passwords
 - API keys
@@ -548,72 +726,50 @@ The repository must not contain:
 - Private certificates
 - Sensitive authentication information
 
-Screenshots are reviewed before publication and sensitive information is redacted where necessary.
+Screenshots must be reviewed and sanitized before publication.
 
 ---
 
-## Validation Standard
+# Validation Standard
 
-The project prioritizes reproducibility and evidence over the number of tools or detections.
+The project prioritizes **reproducibility, evidence, and technical depth** over the number of tools or claims.
 
-A detection should not be counted as completed simply because a query was written.
+A completed detection must demonstrate:
 
-A completed detection should demonstrate:
+```text
+Scenario
+   ↓
+Telemetry
+   ↓
+KQL / Detection Logic
+   ↓
+Result / Alert
+   ↓
+Investigation
+   ↓
+Conclusion
+   ↓
+Validation Evidence
+```
 
-    Controlled Scenario
-          ↓
-    Expected Telemetry
-          ↓
-    KQL / Detection Logic
-          ↓
-    Detection Result / Alert
-          ↓
-    Analyst Investigation
-          ↓
-    Conclusion
-          ↓
-    Validation Evidence
-
-Project metrics will be calculated only from completed and verified work.
-
----
-
-## Project Status
-
-**Current Phase:** Environment Preparation → SOC Architecture
-
-**Day 0:** Completed
-
-**Next Milestone:** Day 1 — SOC Architecture and Cloud Environment Configuration
+Project metrics will only be published after the work has been completed and verified.
 
 ---
 
-## Author
+# Author
 
 **Ananthan D**
 
 Cybersecurity | SOC | Blue Team | Detection Engineering
 
-Focus areas:
+### Focus Areas
 
-- Security Operations
-- SIEM
-- EDR
-- Microsoft Sentinel
-- Microsoft Defender
-- Microsoft Entra ID
-- KQL
-- Threat Hunting
-- Detection Engineering
-- Incident Investigation
-- MITRE ATT&CK
+`SOC Operations` · `SIEM` · `EDR` · `Microsoft Sentinel` · `Microsoft Defender` · `Microsoft Entra ID` · `KQL` · `Threat Hunting` · `Detection Engineering` · `Incident Investigation` · `MITRE ATT&CK`
 
 ---
 
-## Disclaimer
+# Disclaimer
 
-This project is a controlled cybersecurity laboratory created for learning, detection engineering, threat hunting, investigation practice, and portfolio demonstration.
+This project is a controlled cybersecurity laboratory created for learning, detection engineering, threat hunting, incident investigation, response practice, and professional portfolio demonstration.
 
-All attack simulations and security testing activities are performed only within the controlled laboratory environment.
-
-The project does not represent testing against systems or organizations without authorization.
+All attack simulations and security testing activities are performed only within the controlled laboratory environment and are intended for authorized security experimentation.
