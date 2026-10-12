@@ -1,0 +1,102 @@
+// ============================================================
+// Project 05 - Microsoft Cloud SOC
+// Day 05: Authentication Investigation Queries
+// Data source: Microsoft Entra ID SigninLogs
+// Time range: Last 7 days unless otherwise specified
+// ============================================================
+
+
+// ------------------------------------------------------------
+// AUTH-01: Recent Sign-In Activity
+// Evidence: Day05-13-KQL-Authentication-SignIn-Activity.png
+// Purpose: Review recent sign-ins, users, IPs, apps, and outcomes.
+// Expected result: Recent sign-in records, if available.
+// ------------------------------------------------------------
+
+SigninLogs
+| where TimeGenerated > ago(7d)
+| project
+    TimeGenerated,
+    UserPrincipalName,
+    AppDisplayName,
+    IPAddress,
+    ResultType,
+    ResultDescription,
+    Location
+| order by TimeGenerated desc
+| take 20
+
+
+// ------------------------------------------------------------
+// AUTH-02: Failed Sign-In Investigation
+// Evidence: Day05-14-KQL-Failed-SignIn-Investigation.png
+// Purpose: Group failures by user, IP, result code, and description.
+// Expected result: Failed sign-in groups, if present.
+// ------------------------------------------------------------
+
+SigninLogs
+| where TimeGenerated > ago(7d)
+| where ResultType != "0"
+| summarize
+    FailedAttempts = count(),
+    FirstSeen = min(TimeGenerated),
+    LastSeen = max(TimeGenerated)
+    by UserPrincipalName, IPAddress, ResultType, ResultDescription
+| order by FailedAttempts desc
+
+
+// ------------------------------------------------------------
+// AUTH-03: Authentication Outcomes by User
+// Evidence: Day05-15-KQL-Authentication-Outcomes-By-User.png
+// Purpose: Compare total, successful, and failed sign-ins per user.
+// Expected result: One summary row per user with sign-in activity.
+// ------------------------------------------------------------
+
+SigninLogs
+| where TimeGenerated > ago(7d)
+| summarize
+    TotalSignIns = count(),
+    SuccessfulSignIns = countif(ResultType == "0"),
+    FailedSignIns = countif(ResultType != "0"),
+    UniqueSourceIPs = dcount(IPAddress)
+    by UserPrincipalName
+| order by FailedSignIns desc
+
+
+// ------------------------------------------------------------
+// AUTH-04: Authentication Activity by IP
+// Evidence: Day05-16-KQL-Authentication-Activity-By-IP.png
+// Purpose: Compare authentication outcomes across source IPs.
+// Expected result: One row per IP address observed in sign-in logs.
+// ------------------------------------------------------------
+
+SigninLogs
+| where TimeGenerated > ago(7d)
+| summarize
+    TotalAttempts = count(),
+    Successful = countif(ResultType == "0"),
+    Failed = countif(ResultType != "0"),
+    Users = dcount(UserPrincipalName)
+    by IPAddress
+| order by Failed desc
+
+
+// ------------------------------------------------------------
+// AUTH-05: Repeated Failed Sign-Ins
+// Evidence: Day05-17-KQL-Repeated-Failed-SignIns.png
+// Purpose: Find 15-minute windows with at least 3 failures
+// for the same user, IP, and result code.
+// Expected result: Matching groups, or zero rows if none qualify.
+// ------------------------------------------------------------
+
+SigninLogs
+| where TimeGenerated > ago(7d)
+| where ResultType != "0"
+| summarize
+    FailedAttempts = count()
+    by UserPrincipalName,
+       IPAddress,
+       ResultType,
+       bin(TimeGenerated, 15m)
+| where FailedAttempts >= 3
+| order by FailedAttempts desc

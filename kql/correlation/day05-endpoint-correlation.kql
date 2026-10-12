@@ -1,0 +1,67 @@
+// ============================================================
+// Project 05 - Microsoft Cloud SOC
+// Day 05: Endpoint Correlation Queries
+// Purpose: Correlate process telemetry with endpoint inventory
+// Data sources: DeviceProcessEvents and DeviceInfo
+// ============================================================
+
+
+// ------------------------------------------------------------
+// CORR-01: Correlate Process Activity with Endpoint Inventory
+// Evidence: Use the existing successful endpoint-correlation
+// screenshot from Day 05.
+// Purpose: Join process counts with endpoint inventory.
+// Expected result: Endpoint name, OS, onboarding status,
+// and number of process events.
+// ------------------------------------------------------------
+
+let ProcessSummary =
+    DeviceProcessEvents
+    | where DeviceName startswith "p05-win10-ep"
+    | summarize ProcessCount = count() by DeviceId, DeviceName;
+let DeviceInventory =
+    DeviceInfo
+    | where DeviceName startswith "p05-win10-ep"
+    | summarize arg_max(Timestamp, *) by DeviceId
+    | project DeviceId, DeviceName, OSPlatform, OnboardingStatus;
+ProcessSummary
+| join kind=inner DeviceInventory on DeviceId
+| project DeviceName, OSPlatform, OnboardingStatus, ProcessCount
+
+
+// ------------------------------------------------------------
+// CORR-02: Correlate PowerShell Activity with Initiating Process
+// Purpose: Examine PowerShell executions alongside the process
+// that initiated them.
+// Expected result: PowerShell command lines and initiating
+// process names, if matching events exist.
+// ------------------------------------------------------------
+
+DeviceProcessEvents
+| where DeviceName startswith "p05-win10-ep"
+| where FileName =~ "powershell.exe"
+| project
+    Timestamp,
+    DeviceName,
+    AccountName,
+    ProcessCommandLine,
+    InitiatingProcessFileName,
+    InitiatingProcessCommandLine
+| order by Timestamp desc
+| take 50
+
+
+// ------------------------------------------------------------
+// CORR-03: Compare Process Activity by Device and Account
+// Purpose: Summarize which accounts generate process events
+// on each matching endpoint.
+// Expected result: Process-event counts grouped by device
+// and account.
+// ------------------------------------------------------------
+
+DeviceProcessEvents
+| where Timestamp > ago(7d)
+| where DeviceName startswith "p05-win10-ep"
+| summarize ProcessCount = count()
+    by DeviceName, AccountName
+| order by ProcessCount desc

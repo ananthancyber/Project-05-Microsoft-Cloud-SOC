@@ -1,0 +1,94 @@
+// ============================================================
+// Project 05 - Microsoft Cloud SOC
+// Day 05: Threat Hunting Query Library
+// Purpose: Establish endpoint baselines and identify activity
+// that may require further investigation.
+// ============================================================
+
+
+// ------------------------------------------------------------
+// HUNT-01: Recent Process Activity
+// Purpose: Review the latest processes on the lab endpoint.
+// Expected result: Recent process events, if available.
+// ------------------------------------------------------------
+
+DeviceProcessEvents
+| where Timestamp > ago(24h)
+| where DeviceName startswith "p05-win10-ep"
+| project
+    Timestamp,
+    DeviceName,
+    AccountName,
+    FileName,
+    ProcessCommandLine
+| order by Timestamp desc
+| take 50
+
+
+// ------------------------------------------------------------
+// HUNT-02: PowerShell Execution Review
+// Purpose: Review PowerShell execution and command-line context.
+// Expected result: PowerShell events available in telemetry.
+// ------------------------------------------------------------
+
+DeviceProcessEvents
+| where Timestamp > ago(7d)
+| where DeviceName startswith "p05-win10-ep"
+| where FileName =~ "powershell.exe"
+| project
+    Timestamp,
+    DeviceName,
+    AccountName,
+    ProcessCommandLine,
+    InitiatingProcessFileName
+| order by Timestamp desc
+
+
+// ------------------------------------------------------------
+// HUNT-03: Encoded PowerShell Command Search
+// Purpose: Search for common encoded-command indicators.
+// Note: No results is a valid outcome; it does not prove
+// that encoded PowerShell was never executed.
+// ------------------------------------------------------------
+
+DeviceProcessEvents
+| where Timestamp > ago(7d)
+| where DeviceName startswith "p05-win10-ep"
+| where FileName =~ "powershell.exe"
+| where ProcessCommandLine contains "-EncodedCommand"
+    or ProcessCommandLine contains " -enc "
+| project
+    Timestamp,
+    DeviceName,
+    AccountName,
+    ProcessCommandLine
+| order by Timestamp desc
+
+
+// ------------------------------------------------------------
+// HUNT-04: Process Activity Over Time
+// Purpose: Establish an hourly process-event baseline.
+// Expected result: Event counts grouped into hourly intervals.
+// ------------------------------------------------------------
+
+DeviceProcessEvents
+| where Timestamp > ago(24h)
+| where DeviceName startswith "p05-win10-ep"
+| summarize ProcessEvents = count()
+    by bin(Timestamp, 1h)
+| order by Timestamp asc
+
+
+// ------------------------------------------------------------
+// HUNT-05: Most Frequently Observed Processes
+// Purpose: Identify the most frequently recorded executables.
+// Expected result: Executable names and event counts.
+// Important: High frequency alone is not evidence of an attack.
+// ------------------------------------------------------------
+
+DeviceProcessEvents
+| where Timestamp > ago(7d)
+| where DeviceName startswith "p05-win10-ep"
+| summarize EventCount = count() by FileName
+| order by EventCount desc
+| take 10

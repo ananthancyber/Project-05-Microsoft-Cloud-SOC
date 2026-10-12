@@ -1,0 +1,149 @@
+// ============================================================
+// Project 05 - Microsoft Cloud SOC
+// Day 05: Endpoint Investigation Queries
+// Data source: Microsoft Defender XDR Advanced Hunting
+// Table: DeviceProcessEvents
+// Device: p05-win10-ep
+// ============================================================
+
+
+// ------------------------------------------------------------
+// ENDPOINT-01: Recent Process Activity
+// Evidence: Day05-01-Baseline-Process-Telemetry.png
+// Purpose: Review recent process execution on the lab endpoint.
+// Expected result: Process records with timestamps and commands.
+// ------------------------------------------------------------
+
+DeviceProcessEvents
+| where DeviceName startswith "p05-win10-ep"
+| project
+    Timestamp,
+    DeviceName,
+    AccountName,
+    FileName,
+    ProcessCommandLine
+| order by Timestamp desc
+| take 20
+
+
+// ------------------------------------------------------------
+// ENDPOINT-02: Process Event Counts by Executable
+// Evidence: Day05-04-Process-Event-Counts.png
+// Purpose: Identify the most frequently recorded executable names.
+// Expected result: Executable names ordered by event count.
+// ------------------------------------------------------------
+
+DeviceProcessEvents
+| where DeviceName startswith "p05-win10-ep"
+| summarize EventCount = count() by FileName
+| order by EventCount desc
+| take 10
+
+
+// ------------------------------------------------------------
+// ENDPOINT-03: Process Events by Account
+// Evidence: Day05-05-Process-Events-By-Account.png
+// Purpose: Establish which accounts appear in process telemetry.
+// Expected result: Accounts ordered by process event count.
+// ------------------------------------------------------------
+
+DeviceProcessEvents
+| where DeviceName startswith "p05-win10-ep"
+| summarize EventCount = count() by AccountName
+| order by EventCount desc
+
+
+// ------------------------------------------------------------
+// ENDPOINT-04: PowerShell Process Investigation
+// Evidence: Day05-06-PowerShell-CommandLine-Investigation.png
+// Purpose: Inspect PowerShell command lines and initiating processes.
+// Expected result: PowerShell events, if present.
+// ------------------------------------------------------------
+
+DeviceProcessEvents
+| where DeviceName startswith "p05-win10-ep"
+| where FileName =~ "powershell.exe"
+| project
+    Timestamp,
+    DeviceName,
+    AccountName,
+    ProcessCommandLine,
+    InitiatingProcessFileName
+| order by Timestamp desc
+
+
+// ------------------------------------------------------------
+// ENDPOINT-05: PowerShell Command Classification
+// Evidence: Day05-05 or Day05-06, depending on saved screenshot
+// Purpose: Classify PowerShell commands by observable command text.
+// Expected result: PowerShell events with a CommandType label.
+// Note: Labels are simple text-based classifications, not verdicts.
+// ------------------------------------------------------------
+
+DeviceProcessEvents
+| where DeviceName startswith "p05-win10-ep"
+| where FileName =~ "powershell.exe"
+| extend CommandType = case(
+    ProcessCommandLine contains "-EncodedCommand", "Encoded command",
+    ProcessCommandLine contains "-File", "Script file",
+    ProcessCommandLine contains "-Command", "Inline command",
+    "Other"
+)
+| project
+    Timestamp,
+    DeviceName,
+    AccountName,
+    FileName,
+    CommandType,
+    ProcessCommandLine
+| top 20 by Timestamp desc
+
+
+// ------------------------------------------------------------
+// ENDPOINT-06: Process Activity by Hour
+// Evidence: Day05-18-KQL-Endpoint-Process-Activity-By-Hour.png
+// Purpose: Establish an hourly endpoint process-activity baseline.
+// Expected result: One row per hour containing matching events.
+// ------------------------------------------------------------
+
+DeviceProcessEvents
+| where Timestamp > ago(24h)
+| where DeviceName startswith "p05-win10-ep"
+| summarize ProcessEvents = count() by bin(Timestamp, 1h)
+| order by Timestamp asc
+
+
+// ------------------------------------------------------------
+// ENDPOINT-07: Distinct Executable Names
+// Evidence: Day05-09 or the corresponding distinct-process screenshot
+// Purpose: List unique executable names observed on the endpoint.
+// Expected result: An alphabetically sorted list of executable names.
+// ------------------------------------------------------------
+
+DeviceProcessEvents
+| where DeviceName startswith "p05-win10-ep"
+| distinct FileName
+| sort by FileName asc
+
+
+// ------------------------------------------------------------
+// ENDPOINT-08: Process Type Classification
+// Evidence: Day05-01-KQL-Extend-Process-Classification.png
+// Purpose: Add a derived classification field using extend and iff.
+// Expected result: Process records with a ProcessType label.
+// ------------------------------------------------------------
+
+DeviceProcessEvents
+| where DeviceName startswith "p05-win10-ep"
+| extend ProcessType = iff(
+    FileName in~ ("powershell.exe", "pwsh.exe"),
+    "PowerShell",
+    "Other"
+)
+| project
+    Timestamp,
+    DeviceName,
+    AccountName,
+    FileName,
+    ProcessType
+| top 20 by Timestamp desc
