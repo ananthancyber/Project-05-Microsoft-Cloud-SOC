@@ -1,0 +1,27 @@
+// Detection: Repeated Authentication Failures
+// Data source: Microsoft Entra ID SigninLogs
+// Threshold: 3 or more failures for the same user and IP
+// Time window: 15 minutes
+// MITRE ATT&CK: T1110 - Brute Force
+
+SigninLogs
+| where TimeGenerated >= ago(7d)
+| where ResultType != "0"
+| summarize
+    FailedAttempts = count(),
+    FirstFailure = min(TimeGenerated),
+    LastFailure = max(TimeGenerated),
+    FailureCodes = make_set(ResultType),
+    Applications = make_set(AppDisplayName)
+    by UserPrincipalName, IPAddress, bin(TimeGenerated, 15m)
+| where FailedAttempts >= 3
+| project
+    TimeGenerated,
+    UserPrincipalName,
+    IPAddress,
+    FailedAttempts,
+    FirstFailure,
+    LastFailure,
+    FailureCodes,
+    Applications
+| order by FailedAttempts desc
