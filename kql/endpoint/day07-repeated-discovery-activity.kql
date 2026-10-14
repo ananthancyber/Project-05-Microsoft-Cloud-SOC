@@ -1,0 +1,33 @@
+// Detection: Repeated Discovery-Related Command Activity
+// Project: Project 05 — Microsoft Cloud SOC
+// Data Source: Microsoft Defender for Endpoint Advanced Hunting
+// Table: DeviceProcessEvents
+// Endpoint: p05-win10-ep
+// Time Window: 15 minutes
+// Threshold: 2 or more matching process events
+// Purpose: Identify repeated discovery-related command execution
+// MITRE ATT&CK: T1082 - System Information Discovery
+// Note: Matching activity requires investigation; it is not automatically malicious.
+
+DeviceProcessEvents
+| where Timestamp >= ago(24h)
+| where DeviceName =~ "p05-win10-ep"
+| where FileName in~ ("cmd.exe", "powershell.exe", "whoami.exe", "ipconfig.exe", "systeminfo.exe")
+| extend CommandLineLower = tolower(ProcessCommandLine)
+| where CommandLineLower has_any (
+    "whoami",
+    "hostname",
+    "ipconfig",
+    "systeminfo",
+    "net user",
+    "net localgroup"
+)
+| summarize
+    EventCount = count(),
+    Commands = make_set(ProcessCommandLine, 10),
+    ParentProcesses = make_set(InitiatingProcessFileName, 10),
+    FirstSeen = min(Timestamp),
+    LastSeen = max(Timestamp)
+    by DeviceName, AccountName, bin(Timestamp, 15m)
+| where EventCount >= 2
+| order by EventCount desc
