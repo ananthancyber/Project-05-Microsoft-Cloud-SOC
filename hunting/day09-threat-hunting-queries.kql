@@ -1,0 +1,80 @@
+// Hunt 1: Password-spray pattern across multiple accounts
+// Data source: Microsoft Sentinel - SigninLogs
+// Objective: Identify source IPs associated with failed sign-ins
+// against multiple distinct accounts.
+
+SigninLogs
+| where TimeGenerated >= ago(7d)
+| where ResultType != "0"
+| summarize
+    FailedAttempts = count(),
+    TargetAccounts = dcount(UserPrincipalName),
+    AccountList = make_set(UserPrincipalName, 20),
+    FailureReasons = make_set(ResultDescription, 10)
+    by IPAddress
+| where TargetAccounts >= 3
+| order by TargetAccounts desc, FailedAttempts desc
+
+// ============================================================
+// Hunt 2: Suspicious PowerShell execution
+// Data source: Microsoft Defender Advanced Hunting - DeviceProcessEvents
+// Hypothesis: PowerShell executed commands that warrant investigation.
+// Review results in context; PowerShell use alone is not malicious.
+// ============================================================
+
+DeviceProcessEvents
+| where Timestamp >= ago(7d)
+| where DeviceName contains "p05-win10-ep"
+| where FileName in~ ("powershell.exe", "pwsh.exe")
+| project
+    Timestamp,
+    DeviceName,
+    AccountName,
+    FileName,
+    ProcessCommandLine,
+    InitiatingProcessFileName,
+    InitiatingProcessCommandLine
+| order by Timestamp desc
+
+/// ====================================================================
+// Hunt 3: Identity-Endpoint Access
+// Data sources: Microsoft Defender Advanced Hunting
+// Hypothesis: Reviewing endpoint logon and process activity may help
+// identify account access patterns that warrant further investigation.
+// Note: Local Windows and Entra ID identities may be different.
+// ====================================================================
+
+DeviceLogonEvents
+| where Timestamp >= ago(7d)
+| where DeviceName contains "p05-win10-ep"
+| project
+    Timestamp,
+    DeviceName,
+    ActionType,
+    AccountDomain,
+    AccountName,
+    LogonType,
+    RemoteIP,
+    InitiatingProcessFileName
+| order by Timestamp desc
+
+// ====================================================================
+// Hunt 4: Unusual Sign-in Activity
+// Data source: Microsoft Sentinel - SigninLogs
+// Hypothesis: Repeated authentication failures associated with an
+// account may indicate an issue or activity requiring investigation.
+// ====================================================================
+
+SigninLogs
+| where TimeGenerated >= ago(7d)
+| summarize
+    TotalSignIns = count(),
+    FailedSignIns = countif(ResultType != "0"),
+    SuccessfulSignIns = countif(ResultType == "0"),
+    SourceIPs = make_set(IPAddress, 10),
+    Applications = make_set(AppDisplayName, 10),
+    FailureReasons = make_set_if(ResultDescription, ResultType != "0", 10)
+    by UserPrincipalName
+| extend FailureRate = round(100.0 * FailedSignIns / TotalSignIns, 2)
+| where FailedSignIns >= 3
+| order by FailedSignIns desc, FailureRate desc
