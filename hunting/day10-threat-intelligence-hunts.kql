@@ -1,0 +1,79 @@
+// ============================================================
+// Project 05 — Day 10: Threat Intelligence & Advanced Hunting
+// Environment: Microsoft Defender Advanced Hunting
+// Purpose: IOC investigation and network telemetry analysis
+// ============================================================
+
+
+// HUNT 1 — Search endpoint network events for a known IOC
+// Purpose: Find recorded connections to the historical IOC.
+// Note: No matching events were returned during the original
+// 30-day investigation. Re-run when validating current telemetry.
+
+DeviceNetworkEvents
+| where Timestamp > ago(30d)
+| where RemoteIP == "193.3.19.173"
+| project
+    Timestamp,
+    DeviceName,
+    ActionType,
+    RemoteIP,
+    RemotePort,
+    RemoteUrl,
+    InitiatingProcessFileName,
+    InitiatingProcessCommandLine
+| order by Timestamp desc
+
+
+// HUNT 2 — Network activity baseline
+// Purpose: Summarize event volume and remote-IP diversity
+// by action type over the last seven days.
+
+DeviceNetworkEvents
+| where Timestamp > ago(7d)
+| summarize
+    EventCount = count(),
+    UniqueRemoteIPs = dcount(RemoteIP),
+    UniqueDevices = dcount(DeviceName)
+    by ActionType
+| order by EventCount desc
+
+
+// HUNT 3 — Failed connections grouped by remote IP
+// Purpose: Identify destinations associated with failed
+// connections and establish their frequency and time range.
+
+DeviceNetworkEvents
+| where Timestamp > ago(7d)
+| where ActionType == "ConnectionFailed"
+| summarize
+    FailedEvents = count(),
+    FirstSeen = min(Timestamp),
+    LastSeen = max(Timestamp),
+    RemotePorts = make_set(RemotePort, 10),
+    Devices = make_set(DeviceName, 10)
+    by RemoteIP
+| order by FailedEvents desc
+
+
+// HUNT 4 — Investigate external IPs and initiating processes
+// Purpose: Review network events, destination ports, and
+// initiating processes for the three observed external IPs.
+
+DeviceNetworkEvents
+| where Timestamp > ago(7d)
+| where RemoteIP in (
+    "93.123.17.253",
+    "92.223.76.254",
+    "172.167.181.234"
+)
+| project
+    Timestamp,
+    DeviceName,
+    ActionType,
+    RemoteIP,
+    RemotePort,
+    RemoteUrl,
+    InitiatingProcessFileName,
+    InitiatingProcessCommandLine
+| order by Timestamp desc
