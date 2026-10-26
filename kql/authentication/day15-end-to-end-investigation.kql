@@ -1,0 +1,64 @@
+```kusto
+// ============================================================
+// Project 05 - Microsoft Cloud SOC
+// Day 15: End-to-End Authentication Investigation
+// Data source: Microsoft Entra ID SigninLogs
+// Purpose: Investigate authentication activity for a specific
+// lab account and source IP.
+// ============================================================
+
+
+// ------------------------------------------------------------
+// AUTH-15-01: Authentication Event Timeline
+// Purpose: Review successes and failures chronologically.
+// Evidence: Day15-14-Authentication-Timeline.png
+// ------------------------------------------------------------
+
+SigninLogs
+| where TimeGenerated >= ago(24h)
+| where UserPrincipalName =~ "ananthan@personalcybersecuritylab.onmicrosoft.com"
+| where IPAddress == "157.51.230.238"
+| project
+    TimeGenerated,
+    UserPrincipalName,
+    IPAddress,
+    ResultType,
+    ResultDescription,
+    AppDisplayName,
+    Location
+| order by TimeGenerated asc
+
+
+// ------------------------------------------------------------
+// AUTH-15-02: Authentication Outcome Summary
+// Purpose: Count successful, invalid-credential, and other events.
+// Evidence: Day15-13-Authentication-Result-Code-Analysis.png
+// ------------------------------------------------------------
+
+SigninLogs
+| where TimeGenerated >= ago(24h)
+| where UserPrincipalName =~ "ananthan@personalcybersecuritylab.onmicrosoft.com"
+| where IPAddress == "157.51.230.238"
+| summarize
+    TotalEvents = count(),
+    SuccessfulSignIns = countif(ResultType == "0"),
+    InvalidCredentialFailures = countif(ResultType == "50126"),
+    OtherEvents = countif(ResultType != "0" and ResultType != "50126"),
+    FirstSeen = min(TimeGenerated),
+    LastSeen = max(TimeGenerated)
+
+
+// ------------------------------------------------------------
+// AUTH-15-03: Authentication Result-Code Breakdown
+// Purpose: Identify the result codes and descriptions observed.
+// Evidence: Day15-13-Authentication-Result-Code-Analysis.png
+// ------------------------------------------------------------
+
+SigninLogs
+| where TimeGenerated >= ago(24h)
+| where UserPrincipalName =~ "ananthan@personalcybersecuritylab.onmicrosoft.com"
+| where IPAddress == "157.51.230.238"
+| summarize EventCount = count()
+    by ResultType, ResultDescription
+| order by EventCount desc
+```

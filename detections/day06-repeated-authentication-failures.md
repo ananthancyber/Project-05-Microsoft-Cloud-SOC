@@ -81,11 +81,3 @@ Do not classify an event as a confirmed brute-force attack solely because the th
 
 This mapping represents the behavior the detection is intended to identify. The observed lab activity has not been confirmed as a brute-force attack.
 
-## Operational Status
-
-The query has been developed and its threshold logic validated with synthetic data.
-
-Real telemetry did not produce a matching detection group during the observed seven-day baseline.
-
-Generation of a native Microsoft Sentinel analytics alert has not been demonstrated by this validation.
-
