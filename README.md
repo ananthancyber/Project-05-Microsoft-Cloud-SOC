@@ -1,280 +1,237 @@
-# Project 05 — Microsoft Cloud SOC, EDR & Threat Hunting Lab
+# Microsoft Cloud SOC Lab: Identity Detection, Endpoint Hunting & Case Triage
 
-**A hands-on Security Operations Center (SOC) project using Microsoft Sentinel, Microsoft Defender for Endpoint, Microsoft Entra ID, KQL, detection engineering, threat hunting, and security automation.**
-
-![Project Status](https://img.shields.io/badge/Project-Completed-2ea44f)
 ![Microsoft Sentinel](https://img.shields.io/badge/Microsoft-Sentinel-7252aa)
-![Microsoft Defender](https://img.shields.io/badge/Microsoft-Defender-0078D4)
 ![Microsoft Entra ID](https://img.shields.io/badge/Microsoft-Entra_ID-0078D4)
+![Microsoft Defender](https://img.shields.io/badge/Microsoft-Defender_for_Endpoint-0078D4)
 ![KQL](https://img.shields.io/badge/Query_Language-KQL-orange)
-![MITRE ATT%26CK](https://img.shields.io/badge/Framework-MITRE_ATT%26CK-red)
+![MITRE ATT&CK](https://img.shields.io/badge/Framework-MITRE_ATT%26CK-red)
 
-## Project Overview
+A hands-on SOC lab built on Microsoft's security stack. It develops and validates KQL detection logic for **repeated failed Entra ID sign-ins** and **endpoint discovery commands**, triages a set of lab-account sign-ins, and records the work in case-management automation and a validation matrix.
 
-This project demonstrates the practical workflow of a cloud-focused Security Operations Center, from security telemetry analysis and detection development to incident investigation, automation, and validation.
+**Security objective:** show the analyst workflow of query development, controlled testing, evidence-based triage, and documentation, while keeping test results separate from real-world detection claims.
 
-The laboratory uses Microsoft's security ecosystem to investigate identity authentication events, analyze endpoint activity, develop Kusto Query Language (KQL) queries, validate detection logic, investigate security cases, and document investigation findings.
-
-The project follows an evidence-driven SOC workflow, with technical documentation, KQL queries, investigation reports, validation records, automation evidence, and screenshots maintained in the repository.
-
-**Project focus:** Cloud Security Operations | SIEM | EDR | Identity Security | Detection Engineering | Threat Hunting | Incident Investigation
-
-**Target roles:** SOC Analyst L1 | Junior Security Analyst | Cybersecurity Analyst | Blue Team Analyst
+**Technologies:** Microsoft Entra ID (`SigninLogs`), Microsoft Defender for Endpoint (`DeviceProcessEvents`), a Microsoft Sentinel-enabled Log Analytics workspace, KQL, Defender portal case management and automation rules, MITRE ATT&CK.
 
 ---
 
-## Complete Project Architecture
+## Table of Contents
 
-![Project 05 Complete SOC Architecture](architecture/Project05-SOC-Complete-Architecture.png)
+- [Microsoft Cloud SOC Lab: Identity Detection, Endpoint Hunting \& Case Triage](#microsoft-cloud-soc-lab-identity-detection-endpoint-hunting--case-triage)
+  - [Table of Contents](#table-of-contents)
+  - [Project Overview](#project-overview)
+  - [Key Achievements and Results](#key-achievements-and-results)
+  - [Architecture](#architecture)
+  - [Technology Stack](#technology-stack)
+  - [Implementation Phases](#implementation-phases)
+  - [Detection Engineering and Hunting](#detection-engineering-and-hunting)
+    - [Detection: Repeated Authentication Failures (`P05-D06-DET-001`)](#detection-repeated-authentication-failures-p05-d06-det-001)
+    - [Hunting query: Repeated Discovery Activity](#hunting-query-repeated-discovery-activity)
+    - [Representative investigation query](#representative-investigation-query)
+  - [Authentication Investigation](#authentication-investigation)
+  - [MITRE ATT\&CK Coverage](#mitre-attck-coverage)
+  - [Case-Management Automation](#case-management-automation)
+  - [Evidence and Validation](#evidence-and-validation)
+  - [Repository Structure](#repository-structure)
+  - [Exploring and Reproducing the Lab](#exploring-and-reproducing-the-lab)
+  - [Skills Demonstrated](#skills-demonstrated)
+  - [Conclusion](#conclusion)
 
-The architecture illustrates the major components of the laboratory, including identity and endpoint telemetry, data collection, security analytics, detection engineering, investigation, automation, and validation.
+---
 
-### Architecture Documentation
+## Project Overview
 
-| Diagram                                                                                                 | Purpose                                                   |
-| ------------------------------------------------------------------------------------------------------- | --------------------------------------------------------- |
-| [Day 01 — Initial SOC Architecture](architecture/Project05-SOC-Architecture-Day01.png)                  | Initial laboratory architecture and environment           |
-| [Day 15 — Investigation and Automation Architecture](architecture/Project05-SOC-Architecture-Day15.png) | Authentication investigation and case-management workflow |
-| [Complete Project Architecture](architecture/Project05-SOC-Complete-Architecture.png)                   | Project-wide view of the SOC workflow                     |
+SOC analysts spend much of their time deciding whether a pattern of events, such as repeated failed logins or a burst of discovery commands, is routine or worth escalating. This project practices that decision process end to end in a controlled lab:
+
+- **Identity telemetry:** Entra ID sign-in logs were queried to establish a baseline, then a repeated-failure detection was written and tested.
+- **Endpoint telemetry:** a Windows 10 lab endpoint (`p05-win10-ep`) generated process events that a Defender Advanced Hunting query was built to find.
+- **Triage:** 20 sign-in events for one lab account and source IP were analysed using result codes and a chronological timeline, then related to a Defender case.
+- **Case handling:** automation rules tag cases and create an investigation task.
+- **Validation:** results were consolidated into a validation matrix that separates real telemetry, synthetic data, controlled endpoint activity, and case evidence.
+
+All activity took place in an authorised personal lab. The synthetic test and the controlled endpoint test show that the query logic works. They are not evidence of a real attack.
+
+---
+
+## Key Achievements and Results
+
+| Area | Verified result | Evidence |
+|---|---|---|
+| Real-telemetry baseline | 38 Entra ID sign-in records over 7 days (35 successful, 3 failed); detection returned **0 matching groups** | [Day 06 validation](validation/day06-repeated-authentication-failures-validation.md) |
+| Authentication detection (synthetic test) | 4 synthetic failures within 6 minutes returned **1 matching group** against a threshold of 3 in 15 minutes: PASS | [Day 14 matrix](validation/day14-detection-validation-matrix.md) |
+| Endpoint discovery hunting query | 1 matching group containing **2 process events** from one controlled command (`cmd.exe /c "whoami && hostname"`): PASS | [Day 07 validation](validation/day07-repeated-discovery-validation.md) |
+| Authentication triage | **20 sign-in events** analysed: 11 successful, 6 invalid-credential (`50126`), 3 other; counts reconcile to the total | [Day 15 investigation](investigations/day15-authentication-incident-investigation.md) |
+| Case automation | **2 automation rules**, **4 successful execution records**, **3 distinct cases** (195, 196, 197) | [Day 13 validation](validation/day13-automation-validation.md) |
+| Case review | Defender Case 513 reviewed: tag `P05-SOC-Lab` and investigation task confirmed present | [Day 15 validation](validation/day15-end-to-end-investigation-validation.md) |
+| Validation matrix | **7 entries**: 5 PASS, 1 baseline evaluated, 1 workflow demonstrated | [Day 14 matrix](validation/day14-detection-validation-matrix.md) |
+| ATT&CK mapping | 3 techniques mapped: T1110, T1082, T1033 | Detection and validation docs |
+
+**How to read these numbers.** The matrix entries measure different things (events, matched groups, execution records, distinct cases), and the validation record itself says they should not be added together or turned into one success percentage. The 5 PASS results are tests the lab author designed with known inputs, so they confirm query logic and do not measure real-world detection performance. The one detection run against real telemetry returned no matches.
+
+---
+
+## Architecture
+
+![Project 05 complete SOC architecture](architecture/Project05-SOC-Complete-Architecture.png)
+
+**Data flow as documented in the repository:**
+
+1. **Sources:** Entra ID sign-in activity, and process activity on the Windows 10 endpoint `p05-win10-ep` onboarded to Microsoft Defender for Endpoint.
+2. **Storage and query:** sign-in data is queried from `SigninLogs` in the Sentinel-enabled Log Analytics workspace `law-project05-soc`; endpoint data is queried from `DeviceProcessEvents` through Defender Advanced Hunting.
+3. **Detection and hunting:** KQL logic groups failed sign-ins by user, source IP, and 15-minute window, and groups discovery-related process events by device, account, and 15-minute window.
+4. **Investigation:** result-code analysis and chronological timelines for sign-in events; Defender case and alert review.
+5. **Case handling:** automation rules tag cases and add an investigation task.
+6. **Validation:** consolidated in the detection validation matrix.
+
+| Diagram | Purpose |
+|---|---|
+| [Day 01 architecture](architecture/Project05-SOC-Architecture-Day01.png) | Initial lab environment |
+| [Day 15 architecture](architecture/Project05-SOC-Architecture-Day15.png) | Authentication investigation and case workflow |
+| [Complete architecture](architecture/Project05-SOC-Complete-Architecture.png) | Project-wide view |
 
 ---
 
 ## Technology Stack
 
-| Technology                      | Application in the Project                                        |
-| ------------------------------- | ----------------------------------------------------------------- |
-| Microsoft Sentinel              | SIEM investigation and security analytics                         |
-| Microsoft Defender for Endpoint | Endpoint security telemetry and investigation                     |
-| Microsoft Entra ID              | Identity and authentication analysis                              |
-| Azure Log Analytics             | Security data storage and KQL analysis                            |
-| Kusto Query Language (KQL)      | Event filtering, aggregation, investigation, and hunting          |
-| Windows 10                      | Laboratory endpoint and process activity                          |
-| PowerShell and Windows commands | Controlled endpoint activity                                      |
-| MITRE ATT&CK                    | Mapping security use cases to adversary techniques                |
-| Git and GitHub                  | Version control, evidence management, and technical documentation |
-| Visual Studio Code              | KQL development and project documentation                         |
-| VMware Workstation              | Local laboratory virtualization                                   |
+| Technology | Purpose | How it was used |
+|---|---|---|
+| Microsoft Entra ID | Identity telemetry | `SigninLogs` source for the detection baseline and the Day 15 triage |
+| Microsoft Defender for Endpoint | Endpoint telemetry | `DeviceProcessEvents` queried through Advanced Hunting |
+| Microsoft Sentinel | SIEM platform | Enabled on the lab workspace; used as the SIEM layer for KQL-based investigation |
+| Log Analytics workspace (`law-project05-soc`) | Log storage and query | Workspace queried with KQL for sign-in data |
+| KQL | Detection and investigation | Filtering, grouping, `summarize`/`countif`, time bucketing, synthetic `datatable()` tests |
+| Microsoft Defender portal | Case management | Case and alert review, automation rules, investigation tasks |
+| Windows 10 endpoint (`p05-win10-ep`) | Lab endpoint | Controlled command execution to generate process telemetry |
+| MITRE ATT&CK | Technique mapping | Labelling detections and tests (T1110, T1082, T1033) |
+| Git / GitHub | Documentation | Version-controlled queries, reports, and evidence |
 
 ---
 
-## Key Project Outcomes
+## Implementation Phases
 
-The following results are drawn from documented laboratory tests and investigations.
-
-| Activity                                | Quantitative Outcome                                                               | Security Operations Value                                         |
-| --------------------------------------- | ---------------------------------------------------------------------------------- | ----------------------------------------------------------------- |
-| Authentication baseline analysis        | **38 sign-in records** reviewed                                                    | Established an observed authentication baseline                   |
-| Authentication baseline breakdown       | **35 successful and 3 failed sign-ins**                                            | Examined authentication outcomes                                  |
-| Synthetic authentication detection test | **4 controlled failures** grouped into one query result                            | Validated the repeated-failure query logic                        |
-| Endpoint discovery investigation        | **2 matching process events** returned                                             | Examined telemetry generated by controlled discovery activity     |
-| Day 13 automation validation            | Successful execution records documented for case-tagging rules                     | Verified recorded automation executions                           |
-| Day 15 authentication investigation     | **20 sign-in events** analyzed                                                     | Investigated authentication activity across a defined time window |
-| Day 15 event breakdown                  | **6 failures, 11 successes, and 3 other outcomes**                                 | Analyzed authentication results and event chronology              |
-| Case-management workflow                | Case details, tagging, and investigation-task creation checked                     | Practiced SOC case-management procedures                          |
-| Technical documentation                 | Daily notes, KQL files, investigation reports, validation records, and screenshots | Created reproducible technical evidence for portfolio review      |
-
-### What These Results Demonstrate
-
-* Practical investigation of identity and authentication telemetry.
-* Query-based validation of repeated authentication-failure logic.
-* Analysis of Windows endpoint process events.
-* Examination of authentication timelines and result codes.
-* Validation of recorded security automation executions.
-* Documentation of investigation evidence and case-management activities.
-
-The synthetic authentication test validates query behavior against controlled test data; it is not evidence of a real-world attack. Authentication failures are treated as investigation signals rather than automatic proof of compromise.
+| Phase | Objective | What was done | Verification | Evidence |
+|---|---|---|---|---|
+| 1. Environment | Establish telemetry sources | Log Analytics workspace, identity telemetry, and a Windows endpoint onboarded to Defender | Process and sign-in data queryable | [`docs/`](docs/) |
+| 2. Authentication detection | Detect repeated failed sign-ins | Wrote detection `P05-D06-DET-001`; ran it against a 7-day real baseline and a synthetic dataset | 0 matches on real data; 1 match on synthetic data | [Detection](detections/day06-repeated-authentication-failures.md), [validation](validation/day06-repeated-authentication-failures-validation.md) |
+| 3. Endpoint hunting | Find discovery-command activity | Wrote a `DeviceProcessEvents` hunting query; ran a controlled command on the endpoint | Query returned the expected group | [Validation](validation/day07-repeated-discovery-validation.md) |
+| 4. Case automation | Standardise case handling | Configured case-tagging and investigation-task rules | Run histories recorded for cases 195, 196, 197 | [Rules](automation/day13-automation-rules.md), [validation](validation/day13-automation-validation.md) |
+| 5. Validation | Consolidate results | Built a 7-entry matrix with status definitions | Counts reconciled across reports | [Matrix](validation/day14-detection-validation-matrix.md) |
+| 6. Triage | Practice an end-to-end investigation | Analysed 20 sign-in events, reviewed Case 513, checked tag and task | Evidence-based assessment recorded | [Investigation](investigations/day15-authentication-incident-investigation.md) |
 
 ---
 
-## Project Implementation and Deliverables
+## Detection Engineering and Hunting
 
-### 1. Cloud SOC Environment
+### Detection: Repeated Authentication Failures (`P05-D06-DET-001`)
 
-Established the Microsoft security laboratory and documented the core environment, including the Log Analytics workspace, Microsoft Sentinel, identity telemetry, and Windows endpoint.
+| Field | Value |
+|---|---|
+| Data source | Entra ID `SigninLogs` |
+| Logic | Failed sign-ins grouped by user principal name + source IP + 15-minute window |
+| Threshold | 3 or more failures per group |
+| Lookback | 7 days |
+| ATT&CK | T1110 Brute Force |
+| Validation | Synthetic test PASS (4 events, 1 group). Real baseline: 0 groups. |
 
-**Key deliverables:**
+Query: [`kql/authentication/day06-repeated-authentication-failures.kql`](kql/authentication/day06-repeated-authentication-failures.kql)
 
-* Laboratory configuration documentation.
-* Initial architecture diagram.
-* Environment preparation records.
-* Endpoint onboarding and telemetry documentation.
+The threshold and window are initial lab values that would need tuning against normal authentication behaviour before any production use. Meeting the threshold means a pattern warrants review. It does not confirm a brute-force attack. The documented analyst steps are: check result codes and descriptions, review timing and frequency, look for a successful sign-in after the failures, review related identity activity, and escalate only if the evidence supports it.
 
-Documentation: [`docs/`](docs/)
+### Hunting query: Repeated Discovery Activity
 
-### 2. Identity and Authentication Investigation
+| Field | Value |
+|---|---|
+| Data source | Defender `DeviceProcessEvents` |
+| Logic | Process events containing `whoami`, `hostname`, `ipconfig`, `systeminfo`, `net user`, or `net localgroup`, grouped by device + account + 15-minute window |
+| Threshold | 2 or more matching events per group |
+| ATT&CK | T1082, T1033 |
+| Validation | PASS: one group, two events, from `cmd.exe /c "whoami && hostname"` on `p05-win10-ep` as `soc-lab-user` |
 
-Investigated Microsoft Entra ID sign-in activity using authentication fields, timestamps, account information, application context, source IP addresses, and authentication outcomes.
+Query: [`kql/endpoint/day07-repeated-discovery-activity.kql`](kql/endpoint/day07-repeated-discovery-activity.kql)
 
-**Investigation activities:**
+The commands tested are legitimate administrative commands, so this validates query behaviour and not malicious activity.
 
-* Reviewing successful and failed sign-ins.
-* Filtering events by user and source IP.
-* Analyzing authentication result codes.
-* Examining event chronology.
-* Identifying patterns that warrant additional investigation.
-* Documenting findings using KQL and screenshots.
+### Representative investigation query
 
-Key query: [`kql/authentication/day15-end-to-end-investigation.kql`](kql/authentication/day15-end-to-end-investigation.kql)
+Outcome summary used in the Day 15 triage (account and IP replaced with placeholders; the original query is in [`kql/authentication/day15-end-to-end-investigation.kql`](kql/authentication/day15-end-to-end-investigation.kql)):
 
-Investigation report: [`investigations/day15-authentication-incident-investigation.md`](investigations/day15-authentication-incident-investigation.md)
-
-### 3. Detection Engineering
-
-Developed and validated query logic for repeated authentication failures and examined endpoint discovery activity.
-
-#### Authentication Detection
-
-**Detection ID:** `P05-D06-DET-001`
-
-**Detection name:** Repeated Authentication Failures
-
-The query groups failed authentication events by user and source IP within a 15-minute time bucket, using a threshold of three or more failures.
-
-The validation process included:
-
-* Reviewing observed authentication data.
-* Testing query behavior against controlled synthetic events.
-* Examining the grouped output.
-* Recording the validation result.
-
-Detection documentation: [`detections/day06-repeated-authentication-failures.md`](detections/day06-repeated-authentication-failures.md)
-
-Validation evidence: [`validation/day06-repeated-authentication-failures-validation.md`](validation/day06-repeated-authentication-failures-validation.md)
-
-#### Endpoint Discovery Investigation
-
-Investigated process activity associated with controlled discovery commands, including `whoami` and `hostname`.
-
-The investigation examined matching process events and documented the results.
-
-Validation evidence: [`validation/day07-repeated-discovery-validation.md`](validation/day07-repeated-discovery-validation.md)
-
-### 4. KQL-Based Threat Hunting and Investigation
-
-Used KQL to filter, aggregate, and examine security telemetry for authentication and endpoint investigations.
-
-Investigation techniques included:
-
-* Time-based filtering.
-* User and IP-based grouping.
-* Authentication outcome analysis.
-* Process event filtering.
-* Process command-line examination.
-* Timeline analysis.
-* Investigation of repeated activity.
-* Review of query output against the investigation hypothesis.
-
-Query directories:
-
-* [`kql/authentication/`](kql/authentication/)
-* [`kql/endpoint/`](kql/endpoint/)
-* [`kql/correlation/`](kql/correlation/)
-* [`kql/hunting/`](kql/hunting/)
-
-### 5. Incident Investigation and Case Management
-
-Performed an end-to-end authentication investigation using available sign-in telemetry and case-management evidence.
-
-The Day 15 workflow included:
-
-1. Establishing the authentication event baseline.
-2. Reviewing failed and successful sign-ins.
-3. Examining source IP and authentication result codes.
-4. Reviewing event chronology.
-5. Inspecting the relevant security case and associated alert details.
-6. Verifying case tags and investigation-task creation.
-7. Recording findings and supporting evidence.
-
-The documented investigation included a Defender case named **`P05 - Repeated Invalid Credential Attempts`**, with the associated case details recorded in the investigation artifacts.
-
-The analysis focused on evidence-based investigation rather than assuming that authentication failures represented a confirmed attack.
-
-**Key artifacts:**
-
-* [Authentication investigation detection](detections/day15-authentication-investigation.md)
-* [Authentication incident investigation report](investigations/day15-authentication-incident-investigation.md)
-* [End-to-end investigation validation](validation/day15-end-to-end-investigation-validation.md)
-
-### 6. Security Automation
-
-Configured and validated case-management automation rules for laboratory security cases.
-
-Documented activities included:
-
-* Reviewing automation rule configuration.
-* Examining recorded execution results.
-* Applying the `P05-SOC-Lab` case tag.
-* Creating an investigation task.
-* Verifying case details after automation execution.
-
-**Key artifacts:**
-
-* [Day 13 automation rules](automation/day13-automation-rules.md)
-* [Day 13 automation validation](validation/day13-automation-validation.md)
-* [Day 15 investigation automation validation](automation/day15-investigation-automation-validation.md)
-
-### 7. Detection Validation and Evidence Management
-
-Consolidated validation results across authentication investigation, endpoint discovery, automation, and end-to-end investigation activities.
-
-The validation approach records:
-
-* Test objectives and query logic.
-* Observed results.
-* Supporting screenshots.
-* Detection and investigation evidence.
-* Technical findings.
-* Validation status.
-
-**Key artifact:** [Day 14 Detection Validation Matrix](validation/day14-detection-validation-matrix.md)
-
----
-
-## MITRE ATT&CK Mapping
-
-MITRE ATT&CK provides a framework for organizing the adversary behaviors examined during the project.
-
-| Technique ID                                        | Technique                    | Project Application                                      |
-| --------------------------------------------------- | ---------------------------- | -------------------------------------------------------- |
-| [T1110](https://attack.mitre.org/techniques/T1110/) | Brute Force                  | Authentication-failure investigation and detection logic |
-| [T1082](https://attack.mitre.org/techniques/T1082/) | System Information Discovery | Controlled endpoint discovery activity                   |
-
-These mappings describe the behaviors investigated in the laboratory and the related detection use cases.
-
-MITRE ATT&CK documentation: [`mitre-coverage/`](mitre-coverage/)
-
----
-
-## End-to-End SOC Investigation Workflow
-
-The project brings together the following analyst workflow:
-
-```text
-Security Telemetry
-        |
-        v
-Data Collection and Availability
-        |
-        v
-KQL Investigation and Analysis
-        |
-        v
-Detection Logic and Validation
-        |
-        v
-Alert and Case Review
-        |
-        v
-Evidence Collection and Timeline Analysis
-        |
-        v
-Case Tagging and Investigation Tasks
-        |
-        v
-Validation and Technical Documentation
+```kusto
+SigninLogs
+| where TimeGenerated >= ago(24h)
+| where UserPrincipalName =~ "<lab-account-upn>"
+| where IPAddress == "<source-ip>"
+| summarize
+    TotalEvents = count(),
+    SuccessfulSignIns = countif(ResultType == "0"),
+    InvalidCredentialFailures = countif(ResultType == "50126"),
+    OtherEvents = countif(ResultType != "0" and ResultType != "50126"),
+    FirstSeen = min(TimeGenerated),
+    LastSeen = max(TimeGenerated)
 ```
 
-This workflow demonstrates how an analyst can move from examining security events to recording findings and validating investigation procedures.
+**What it does:** counts outcomes for one account and source IP over 24 hours. `ResultType` `0` is success and `50126` is an invalid username or password. **Observed output:** 20 total, 11 successful, 6 invalid-credential, 3 other. **Analyst use:** the counts show whether failures and successes are mixed for the same account and IP, which leads to the timeline and result-code queries in the same file.
+
+---
+
+## Authentication Investigation
+
+**Investigation ID:** `P05-D15-INV-001` | **Related detection:** `P05-D06-DET-001` | **Defender case:** 513
+
+| Step | What was done |
+|---|---|
+| Scope | One lab account and one source IP, 24-hour lookback, applications Azure Portal and Office365 Shell WCSS-Client |
+| Outcome analysis | 20 events: 11 successful, 6 `50126`, 3 other (including `50140`, the "Keep me signed in" interruption) |
+| Timeline | Successful Azure Portal sign-in, then two `50126` failures about 78 seconds apart, then further successes |
+| Case review | Case 513, `P05 - Repeated Invalid Credential Attempts`: severity Low, status Active, classification Unclassified, 1 associated alert, no entities displayed in the incident graph |
+| Case handling | Tag `P05-SOC-Lab` and an investigation task present (task status "Not set") |
+| Assessment | **Authentication activity investigated; malicious activity not confirmed** |
+
+The investigation record states that the evidence does not establish an attacker, a brute-force attack, or account compromise. It also notes that six failures across 24 hours do not show that three or more occurred inside a single 15-minute window, so the investigation is not presented as a confirmed match for the Day 06 detection. The case remains open pending further validation.
+
+An endpoint-side investigation record is also in the repository: [`investigations/day11-endpoint-incident-investigation.md`](investigations/day11-endpoint-incident-investigation.md).
+
+---
+
+## MITRE ATT&CK Coverage
+
+| Tactic | Technique | Use case | Validation status |
+|---|---|---|---|
+| Credential Access | [T1110 Brute Force](https://attack.mitre.org/techniques/T1110/) | Repeated failed sign-ins detection | Logic validated on synthetic data only; 0 matches on real baseline |
+| Discovery | [T1082 System Information Discovery](https://attack.mitre.org/techniques/T1082/) | `hostname` in discovery hunting query | Query validated on controlled endpoint activity |
+| Discovery | [T1033 System Owner/User Discovery](https://attack.mitre.org/techniques/T1033/) | `whoami` in discovery hunting query | Query validated on controlled endpoint activity |
+
+Three techniques are mapped. The mappings describe behaviours the queries target and are not claims of broad ATT&CK coverage.
+
+---
+
+## Case-Management Automation
+
+Two automation rules in the Defender portal handle lab cases: one applies the `P05-SOC-Lab` tag and one creates an investigation task. Rule definitions: [`automation/day13-automation-rules.md`](automation/day13-automation-rules.md).
+
+| Rule | Case | Recorded result |
+|---|---|---|
+| `P05 - Auto-Tag SOC Lab Cases` | 196 | Success |
+| `P05 - Tag Invalid Credential Incidents` | 195 | Success |
+| `P05 - Tag Invalid Credential Incidents` | 196 | Success |
+| `P05 - Tag Invalid Credential Incidents` | 197 | Success |
+
+Status: **configured; 4 successful execution records documented.** These counts come from displayed run history and do not measure overall reliability. On Case 513 the task was created but its status was "Not set", so the evidence shows task creation and not task completion. This is case-handling automation. It does not perform containment or remediation.
+
+Evidence: [Day 13 validation](validation/day13-automation-validation.md), [Day 15 automation validation](automation/day15-investigation-automation-validation.md).
+
+---
+
+## Evidence and Validation
+
+| Evidence | What it shows |
+|---|---|
+| [Detection validation matrix](validation/day14-detection-validation-matrix.md) | 7 test and workflow entries with expected result, observed result, and status |
+| [Day 06 validation](validation/day06-repeated-authentication-failures-validation.md) | Real baseline (0 matches) kept separate from the synthetic test (1 match) |
+| [Day 07 validation](validation/day07-repeated-discovery-validation.md) | Controlled command, matching Defender process events, and the grouped query result |
+| [Day 13 validation](validation/day13-automation-validation.md) | Automation run histories |
+| [Day 15 validation](validation/day15-end-to-end-investigation-validation.md) | Triage results and Case 513 review |
+| `screenshots/Day06/`, `Day07/`, `Day13/`, `Day15/` | Screenshots supporting each report |
+
+**Status definitions used in the matrix:** *PASS*: the recorded test produced the expected result. *Baseline evaluated*: real telemetry was examined and no matching group was returned. *Demonstrated*: the workflow was performed and is supported by recorded evidence.
 
 ---
 
@@ -282,132 +239,51 @@ This workflow demonstrates how an analyst can move from examining security event
 
 ```text
 Project-05-Microsoft-Cloud-SOC/
-│
-├── architecture/
-│   ├── Project05-SOC-Architecture-Day01.png
-│   ├── Project05-SOC-Architecture-Day15.png
-│   └── Project05-SOC-Complete-Architecture.png
-│
-├── attacks/
-│
-├── automation/
-│   ├── day13-automation-rules.md
-│   └── day15-investigation-automation-validation.md
-│
-├── detections/
-│   ├── day06-repeated-authentication-failures.md
-│   └── day15-authentication-investigation.md
-│
-├── docs/
-│   ├── Day00.md
-│   ├── Day01.md
-│   ├── ...
-│   ├── Day13.md
-│   └── Day15.md
-│
-├── hunting/
-│
-├── investigations/
-│   ├── day11-endpoint-incident-investigation.md
-│   └── day15-authentication-incident-investigation.md
-│
+├── architecture/     # Day 01, Day 15, and complete architecture diagrams
+├── automation/       # Automation rule documentation and validation
+├── detections/       # Detection documents (Day 06, Day 15)
+├── docs/             # Daily implementation notes
+├── investigations/   # Day 11 endpoint and Day 15 authentication investigations
 ├── kql/
-│   ├── authentication/
-│   ├── endpoint/
-│   ├── correlation/
-│   └── hunting/
-│
-├── mitre-coverage/
-│
-├── screenshots/
-│   └── Day15/
-│
-├── validation/
-│   ├── day06-repeated-authentication-failures-validation.md
-│   ├── day07-repeated-discovery-validation.md
-│   ├── day13-automation-validation.md
-│   ├── day14-detection-validation-matrix.md
-│   └── day15-end-to-end-investigation-validation.md
-│
+│   ├── authentication/   # Sign-in detection and investigation queries
+│   └── endpoint/         # Endpoint hunting queries
+├── mitre-coverage/   # ATT&CK mapping documentation
+├── screenshots/      # Evidence screenshots by day
+├── validation/       # Per-test reports and the Day 14 validation matrix
 └── README.md
 ```
 
-Browse the folders for the complete set of daily documentation, query files, screenshots, validation records, and supporting evidence.
+---
+
+## Exploring and Reproducing the Lab
+
+**To review the work without building anything:** open the [validation matrix](validation/day14-detection-validation-matrix.md), then follow its links to each detailed report and the matching screenshots.
+
+**To reproduce it you would need:**
+
+- A Microsoft Entra ID tenant and an Azure Log Analytics workspace receiving `SigninLogs`
+- Microsoft Defender for Endpoint with a Windows 10 endpoint onboarded
+- Access to the Defender portal for Advanced Hunting, case management, and automation rules
+
+**Steps:** run the queries in `kql/` against your own telemetry, replacing the account and IP placeholders; run the synthetic `datatable()` test for the Day 06 detection; execute the controlled discovery command on your endpoint and run the Day 07 query; compare your results with the validation reports.
+
+Case IDs, tenant details, and screenshots are specific to the original lab and will differ. No credentials or tokens are used in the repository files.
 
 ---
 
 ## Skills Demonstrated
 
-### Security Operations
-
-* Security event investigation.
-* Authentication and identity analysis.
-* Endpoint telemetry review.
-* Incident and case investigation.
-* Evidence collection and reporting.
-
-### SIEM and KQL
-
-* KQL filtering and aggregation.
-* Time-based event analysis.
-* Authentication investigation.
-* Process-event analysis.
-* Query-based hunting and validation.
-
-### Detection Engineering
-
-* Detection hypothesis development.
-* Repeated authentication-failure logic.
-* Controlled query testing.
-* Detection validation documentation.
-* MITRE ATT&CK mapping.
-
-### Microsoft Security
-
-* Microsoft Sentinel concepts and investigation workflows.
-* Microsoft Defender for Endpoint telemetry.
-* Microsoft Entra ID sign-in analysis.
-* Log Analytics and security data investigation.
-* Security case-management automation.
-
-### Professional SOC Practices
-
-* Evidence-driven analysis.
-* Timeline construction.
-* Investigation documentation.
-* Validation record maintenance.
-* Technical reporting and GitHub portfolio management.
+| Category | Demonstrated by |
+|---|---|
+| Detection engineering | Defining a detection with ID, data source, threshold, and ATT&CK mapping; testing logic against synthetic data; separating real-baseline results from test results |
+| Query-based investigation | KQL filtering, `summarize`/`countif`, time bucketing, result-code analysis, timeline construction |
+| Identity security | Entra ID sign-in analysis, interpreting `ResultType` codes such as `0`, `50126`, `50140` |
+| Endpoint security | Defender Advanced Hunting over `DeviceProcessEvents`, controlled endpoint testing |
+| Case handling | Case and alert review, tagging, investigation tasks, automation rule run histories |
+| Documentation | Validation matrix with status definitions, per-test reports, evidence-referenced findings, cautious assessments |
 
 ---
 
-## Project Documentation and Evidence
+## Conclusion
 
-| Resource                                 | Description                                                |
-| ---------------------------------------- | ---------------------------------------------------------- |
-| [Daily Documentation](docs/)             | Implementation notes and project activities                |
-| [KQL Queries](kql/)                      | Authentication, endpoint, correlation, and hunting queries |
-| [Detection Content](detections/)         | Documented detection use cases                             |
-| [Investigation Reports](investigations/) | Case investigation findings                                |
-| [Automation Artifacts](automation/)      | Automation rules and validation records                    |
-| [Validation Records](validation/)        | Test results and validation matrix                         |
-| [Architecture Diagrams](architecture/)   | Initial, Day 15, and complete project architecture         |
-| [Screenshots](screenshots/)              | Visual evidence of laboratory activities                   |
-| [MITRE ATT&CK Mapping](mitre-coverage/)  | Technique mapping documentation                            |
-
----
-
-## About the Author
-
-**Ananthan D**
-
-Aspiring SOC Analyst | Cybersecurity | Blue Team
-
-**Core areas of focus:** Microsoft Sentinel · Microsoft Defender for Endpoint · Microsoft Entra ID · KQL · SIEM · EDR · Threat Hunting · Detection Engineering · Incident Investigation
-
-GitHub: [@ananthancyber](https://github.com/ananthancyber)
-
----
-
-## Disclaimer
-
-This repository documents a personal cybersecurity laboratory created for defensive security learning, investigation practice, detection engineering, and professional portfolio development. Activities are intended for authorized laboratory environments.
+This project shows the core loop of detection work: write a query, test it against known data, check it against real telemetry, triage what turns up, and record what the evidence does and does not support. It covers one authentication detection, one endpoint hunting query, one sign-in triage, and two case-handling automation rules, each documented with its validation status and kept separate from claims of real-world detection.
